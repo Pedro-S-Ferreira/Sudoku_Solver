@@ -6,6 +6,9 @@ pygame.display.set_caption("Sudoku Solver")
 SIZE = widht, height = 577, 577
 BLACK = 0, 0, 0
 WHITE = 220, 220, 220
+LIGHT_BLUE = 100, 100, 255
+LIGHT_RED = 255, 100, 100
+LIGHT_GREEN = 100, 200, 100
 FONT = pygame.font.SysFont('arial', 50)
 
 SCREEN = pygame.display.set_mode(SIZE)
@@ -21,15 +24,16 @@ def game_to_real_coords_number(game_coords):
     return game_coords[0] * 64 + 20, game_coords[1] * 64 + 4
 
 class Digit():
-    def __init__(self, value, game_coords, original, solved):
+    def __init__(self, value, game_coords, original, solved, font_colour):
         self.value = value
         self.game_coords = game_coords
         self.original = original #If True, it wasn't guessed
         self.solved = solved # 0 if not, 1 if yes
+        self.font_colour = font_colour
 
     def draw(self):
         pygame.draw.rect(SCREEN, BLACK, game_to_real_coords_square(self.game_coords), 1)
-        text = FONT.render(self.value, False, BLACK, WHITE)
+        text = FONT.render(self.value, False, self.font_colour, WHITE)
         SCREEN.blit(text, game_to_real_coords_number(self.game_coords))
 
 board_list = []
@@ -40,11 +44,9 @@ def reset_board():
     for x in range(9):
         temp_list.append([])
         for y in range(9):
-            temp_list[x].append(Digit("0", (x, y), False, 0))
+            temp_list[x].append(Digit("0", (x, y), False, 0, BLACK))
         for item in temp_list[x]: # Draw the board
             item.draw()
-            text = FONT.render(item.value, False, BLACK, WHITE)
-            SCREEN.blit(text, game_to_real_coords_number(item.game_coords))
         print(temp_list[x])
     # Draw the dividing lines
     pygame.draw.rect(SCREEN, BLACK, (190, 0, 4, 576))
@@ -61,10 +63,9 @@ def board_draw(board_list):
             digit.draw()
             if digit.value != "0":
                 digit.solved = 1
-            text = FONT.render(item.value, False, BLACK, WHITE)
-            SCREEN.blit(text, game_to_real_coords_number(item.game_coords))
 
-def digit_solver(position):
+def digit_solver(digit):
+    position = digit.game_coords
     if not board_list[position[0]][position[1]].value == "0": #Check that this square hasn't been solved.
         return board_list[position[0]][position[1]].value
 
@@ -98,10 +99,19 @@ def digit_solver(position):
                         continue
 
     if len(possible_list) == 1:
+        digit.font_colour = LIGHT_GREEN
         return possible_list[0]
     else:
         print(possible_list)
         return "0"
+
+def edit_digit(digit):
+    digit.value = input("Clicked on: " + str (digit.game_coords) + ". What do you want its new value to be? (Current value is " + str(digit.value) + ") ")
+    if digit.value == "0":
+        digit.font_colour = BLACK
+    else:
+        digit.font_colour = LIGHT_RED
+    digit.draw()
 
 board_list = reset_board()
 
@@ -113,14 +123,16 @@ while True:
                 for row in board_list:
                     for digit in row:
                         if pygame.Rect(game_to_pygame_Rect_coords(digit.game_coords)).collidepoint(event.pos):
-                            digit.value = input("Clicked on: " + str (digit.game_coords) + ". What do you want its new value to be? (Current value is " + str(digit.value) + ") ")
+                            digit.font_colour = LIGHT_BLUE
                             digit.draw()
+                            pygame.display.update()
+                            edit_digit(digit)
 
             if event.button == 3: #Attempt to solve the clicked square
                 for row in board_list:
                     for digit in row:
                         if pygame.Rect(game_to_pygame_Rect_coords(digit.game_coords)).collidepoint(event.pos):
-                            digit.value = digit_solver(digit.game_coords)
+                            digit.value = digit_solver(digit)
                             digit.draw()
             
             if event.button == 2: #Attempt to solve the entire board
@@ -129,7 +141,7 @@ while True:
                     current_solved = total_solved    
                     for row in board_list:
                         for digit in row:
-                            digit.value = digit_solver(digit.game_coords)
+                            digit.value = digit_solver(digit)
                             digit.draw()
                             if digit.solved:
                                 total_solved += 1
