@@ -47,7 +47,6 @@ def reset_board():
             temp_list[x].append(Digit("0", (x, y), False, 0, BLACK))
         for item in temp_list[x]: # Draw the board
             item.draw()
-        print(temp_list[x])
     # Draw the dividing lines
     pygame.draw.rect(SCREEN, BLACK, (190, 0, 4, 576))
     pygame.draw.rect(SCREEN, BLACK, (382, 0, 4, 576))
@@ -61,8 +60,6 @@ def board_draw(board_list):
     for row in board_list:
         for digit in row:
             digit.draw()
-            if digit.value != "0":
-                digit.solved = 1
 
 def digit_solver(digit):
     position = digit.game_coords
@@ -100,6 +97,7 @@ def digit_solver(digit):
 
     if len(possible_list) == 1:
         digit.font_colour = LIGHT_GREEN
+        digit.solved = 1
         return possible_list[0]
     else:
         print(possible_list)
@@ -145,8 +143,12 @@ while True:
                             digit.draw()
                             if digit.solved:
                                 total_solved += 1
+                                digit.solved = 0
                     if total_solved == current_solved:
-                        print("Sorry, couldn't solve it.")
+                        print("Solved!", current_solved, total_solved)
                         break
+            
+            if event.type == pygame.KEYDOWN:
+                print(event.key)
 
         if event.type == pygame.QUIT: sys.exit() #Exit the programm
