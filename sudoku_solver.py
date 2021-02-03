@@ -24,12 +24,14 @@ def game_to_real_coords_number(game_coords):
     return game_coords[0] * 64 + 20, game_coords[1] * 64 + 4
 
 class Digit():
-    def __init__(self, value, game_coords, original, solved, font_colour):
+    def __init__(self, value, game_coords, cube_coords, original, solved, font_colour, poss_values):
         self.value = value
-        self.game_coords = game_coords
+        self.game_coords = game_coords # 9x9 coords
+        self.cube_coords = cube_coords # 3x3 coords, which smaller cube they're apart of
         self.original = original #If True, it wasn't guessed
         self.solved = solved # 0 if not, 1 if yes
         self.font_colour = font_colour
+        self.poss_values = poss_values
 
     def draw(self):
         pygame.draw.rect(SCREEN, BLACK, game_to_real_coords_square(self.game_coords), 1)
@@ -44,7 +46,7 @@ def reset_board():
     for x in range(9):
         temp_list.append([])
         for y in range(9):
-            temp_list[x].append(Digit("0", (x, y), False, 0, BLACK))
+            temp_list[x].append(Digit("0", (x, y), (int(x/3), int(y/3)),False, 0, BLACK, ["1", "2", "3", "4", "5", "6", "7", "8", "9"]))
         for item in temp_list[x]: # Draw the board
             item.draw()
     # Draw the dividing lines
@@ -66,45 +68,84 @@ def digit_solver(digit):
     if not board_list[position[0]][position[1]].value == "0": #Check that this square hasn't been solved.
         return board_list[position[0]][position[1]].value
 
-    possible_list = ["1", "2", "3", "4", "5", "6", "7", "8", "9"]
-    cube_coords = [0, 0] #Temporary coordinates to then figure out in which cube it belongs to
-
     for y in range(9): #Check numbers in rows
-        if board_list[position[0]][y].value in possible_list:
+        if board_list[position[0]][y].value in digit.poss_values:
             try:
-                possible_list.remove(board_list[position[0]][y].value)
+                digit.poss_values.remove(board_list[position[0]][y].value)
             except:
                 continue
 
     for x in range(9): #Check numbers in collumns
-        if board_list[x][position[1]].value in possible_list:
+        if board_list[x][position[1]].value in digit.poss_values:
             try:
-                possible_list.remove(board_list[x][position[1]].value)
+                digit.poss_values.remove(board_list[x][position[1]].value)
             except:
                 continue
-    
-    cube_coords[0] = int(position[0] / 3)
-    cube_coords[1] = int(position[1] / 3)
 
     for x in range(9): #Check numbers in correspondant cube
         for y in range(9):
-            if int(board_list[x][y].game_coords[0] / 3) == cube_coords[0] and int(board_list[x][y].game_coords[1] / 3) == cube_coords[1]:
-                if board_list[x][y].value in possible_list:
+            if (int(board_list[x][y].game_coords[0] / 3), int(board_list[x][y].game_coords[1] / 3)) == (digit.cube_coords[0], digit.cube_coords[1]):
+                if board_list[x][y].value in digit.poss_values:
                     try:
-                        possible_list.remove(board_list[x][y].value)
+                        digit.poss_values.remove(board_list[x][y].value)
                     except:
                         continue
-
-    if len(possible_list) == 1:
+ 
+    if len(digit.poss_values) == 1:
         digit.font_colour = LIGHT_GREEN
         digit.solved = 1
-        return possible_list[0]
+        return digit.poss_values[0]
+    
+    
+    test_poss_values = list(digit.poss_values)
+
+    for x in range(9): #Check numbers in correspondant cube
+        for y in range(9):
+            if (int(board_list[x][y].game_coords[0] / 3), int(board_list[x][y].game_coords[1] / 3)) == (digit.cube_coords[0], digit.cube_coords[1]):
+                if (board_list[x][y].game_coords[0], board_list[x][y].game_coords[1]) != (digit.game_coords[0], digit.game_coords[1]):
+                    for value in board_list[x][y].poss_values:
+                        try:
+                            test_poss_values.remove(value)
+                        except:
+                            continue
+
+    
+    if len(test_poss_values) == 1:
+        digit.poss_values = test_poss_values    
+
+    if len(digit.poss_values) == 1:
+        digit.font_colour = LIGHT_GREEN
+        digit.solved = 1
+        return digit.poss_values[0]
     else:
-        print(possible_list)
+        print("It appears I can't this square yet, or that there are multiple solutions.")
+        print("Here's a list of the possible values:", digit.poss_values)
         return "0"
 
 def edit_digit(digit):
-    digit.value = input("Clicked on: " + str (digit.game_coords) + ". What do you want its new value to be? (Current value is " + str(digit.value) + ") ")
+    print("Clicked on: " + str (digit.game_coords) + ". What do you want its new value to be? (Current value is " + str(digit.value) + ") ")
+    gathering = True
+    while gathering:
+        for event in pygame.event.get():
+            if event.type == pygame.KEYDOWN:
+
+                if event.key in range(48, 58): #Check for numbers near F1 - F12 keys
+                    digit.value = str(event.key - 48)
+                    if str(event.key - 48) != 0:
+                        digit.poss_values = list(str(event.key - 48)) #Make it so the list of possible values is the input itself
+                    gathering = False #Stop the while loop
+
+                elif event.key in range(1073741913, 1073741923): #Check for numbers in numbpad
+                    if event.key in range(1073741913, 1073741922):
+                        digit.value = str(event.key - 1073741912)
+                        digit.poss_values = list(str(event.key - 1073741912)) #Make it so the list of possible values is the input itself
+                        gathering = False #Stop the while loop
+                    else:
+                        digit.value = "0"
+                        gathering = False #Stop the while loop
+
+                else:
+                    print("Invalid input, it must be a number.")
     if digit.value == "0":
         digit.font_colour = BLACK
     else:
@@ -115,7 +156,8 @@ board_list = reset_board()
 
 while True:
     pygame.display.update()
-    for event in pygame.event.get():
+    events = pygame.event.get()
+    for event in events:
         if event.type == pygame.MOUSEBUTTONDOWN:
             if event.button == 1: #Assign a value
                 for row in board_list:
@@ -148,7 +190,7 @@ while True:
                         print("Solved!", current_solved, total_solved)
                         break
             
-            if event.type == pygame.KEYDOWN:
-                print(event.key)
+        if event.type == pygame.KEYDOWN: #Testing purposes
+            print(event.key)
 
         if event.type == pygame.QUIT: sys.exit() #Exit the programm
