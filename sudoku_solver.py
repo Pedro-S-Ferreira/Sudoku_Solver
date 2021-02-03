@@ -46,7 +46,7 @@ def reset_board():
     for x in range(9):
         temp_list.append([])
         for y in range(9):
-            temp_list[x].append(Digit("0", (x, y), (int(x/3), int(y/3)),False, 0, BLACK, ["1", "2", "3", "4", "5", "6", "7", "8", "9"]))
+            temp_list[x].append(Digit("0", (x, y), (int(x/3), int(y/3)),False, 0, BLACK, [str(x) for x in range(1, 10)]))
         for item in temp_list[x]: # Draw the board
             item.draw()
     # Draw the dividing lines
@@ -117,10 +117,82 @@ def digit_solver(digit):
         digit.font_colour = LIGHT_GREEN
         digit.solved = 1
         return digit.poss_values[0]
+
+    #If, in any given smaller cube, one possible value is found on ONLY the lists of 3 adjecent digits (vertical or horizontal) we can be certain
+    #that value will be in that collumn/row, meaning we can remove said value from the possible lists of all others digits in the same row/collumn
+    #in the entire board
+    for x in range(0, 7, 3): # As mini cubes are in a 3x3 arrangement
+        for y in range(0, 7, 3):
+
+            for value in board_list[x][y].poss_values:
+                if value in (board_list[x + 1][y].poss_values + board_list[x + 2][y].poss_values): #Check matching value
+                    if value not in (board_list[x][y + 1].poss_values + board_list[x + 1][y + 1].poss_values + board_list[x + 2][y + 1].poss_values + board_list[x][y + 2].poss_values + board_list[x + 1][y + 2].poss_values + board_list[x + 2][y + 2].poss_values): # Check that it isn't on any other to make this solution true
+                        for z in range(9):
+                            if z not in (x, x+1, x+2): #Doesn't remove the possible value from the place were certain it might be
+                                try:
+                                    board_list[z][y].poss_values.remove(value)
+                                except:
+                                    continue
+
+            for value in board_list[x][y + 1].poss_values:                            
+                if value in (board_list[x + 1][y + 1].poss_values + board_list[x + 2][y + 1].poss_values): #Check matching value
+                    if value not in (board_list[x][y].poss_values + board_list[x + 1][y].poss_values + board_list[x + 2][y].poss_values + board_list[x][y + 2].poss_values + board_list[x + 1][y + 2].poss_values + board_list[x + 2][y + 2].poss_values): # Check that it isn't on any other to make this solution true
+                        for z in range(9):
+                            if z not in (x, x+1, x+2): #Doesn't remove the possible value from the place were certain it might be
+                                try:
+                                    board_list[z][y + 1].poss_values.remove(value)
+                                except:
+                                    continue
+
+            for value in board_list[x][y + 2].poss_values:                        
+                if value in (board_list[x + 1][y + 2].poss_values + board_list[x + 2][y + 2].poss_values): #Check matching value
+                    if value not in (board_list[x][y + 1].poss_values + board_list[x + 1][y + 1].poss_values + board_list[x + 2][y + 1].poss_values + board_list[x][y].poss_values + board_list[x + 1][y].poss_values + board_list[x + 2][y].poss_values): # Check that it isn't on any other to make this solution true
+                        for z in range(9):
+                            if z not in (x, x+1, x+2): #Doesn't remove the possible value from the place were certain it might be
+                                try:
+                                    board_list[z][y + 2].poss_values.remove(value)
+                                except:
+                                    continue
+                
+            for value in board_list[x][y].poss_values: # This one could be mixed with the first square as they both use the same starting point
+                if value in (board_list[x][y + 1].poss_values + board_list[x][y + 2].poss_values): #Check matching value
+                    if value not in (board_list[x + 1][y].poss_values + board_list[x + 1][y + 1].poss_values + board_list[x + 1][y + 2].poss_values + board_list[x + 2][y].poss_values + board_list[x + 2][y + 1].poss_values + board_list[x + 2][y + 2].poss_values): # Check that it isn't on any other to make this solution true
+                        for z in range(9):
+                            if z not in (y, y+1, y+2): #Doesn't remove the possible value from the place were certain it might be
+                                try:
+                                    board_list[x][z].poss_values.remove(value)
+                                except:
+                                    continue
+
+            for value in board_list[x + 1][y].poss_values:
+                if value in (board_list[x + 1][y + 1].poss_values + board_list[x + 1][y + 2].poss_values): #Check matching value
+                    if value not in (board_list[x][y].poss_values + board_list[x][y + 1].poss_values + board_list[x][y + 2].poss_values + board_list[x + 2][y].poss_values + board_list[x + 2][y + 1].poss_values + board_list[x + 2][y + 2].poss_values): # Check that it isn't on any other to make this solution true
+                        for z in range(9):
+                            if z not in (y, y+1, y+2): #Doesn't remove the possible value from the place were certain it might be
+                                try:
+                                    board_list[x + 1][z].poss_values.remove(value)
+                                except:
+                                    continue
+
+            for value in board_list[x + 2][y].poss_values:
+                if value in (board_list[x + 2][y + 1].poss_values + board_list[x + 2][y + 2].poss_values): #Check matching value
+                    if value not in (board_list[x + 1][y].poss_values + board_list[x + 1][y + 1].poss_values + board_list[x + 1][y + 2].poss_values + board_list[x][y].poss_values + board_list[x][y + 1].poss_values + board_list[x][y + 2].poss_values): # Check that it isn't on any other to make this solution true
+                        for z in range(9):
+                            if z not in (y, y+1, y+2): #Doesn't remove the possible value from the place were certain it might be
+                                try:
+                                    board_list[x + 2][z].poss_values.remove(value)
+                                except:
+                                    continue
+
+    if len(digit.poss_values) == 1:
+        digit.font_colour = LIGHT_GREEN
+        digit.solved = 1
+        return digit.poss_values[0]
     else:
-        print("It appears I can't this square yet, or that there are multiple solutions.")
+        print("It appears I can't solve this square yet, or that there are multiple solutions.")
         print("Here's a list of the possible values:", digit.poss_values)
         return "0"
+
 
 def edit_digit(digit):
     print("Clicked on: " + str (digit.game_coords) + ". What do you want its new value to be? (Current value is " + str(digit.value) + ") ")
@@ -148,6 +220,7 @@ def edit_digit(digit):
                     print("Invalid input, it must be a number.")
     if digit.value == "0":
         digit.font_colour = BLACK
+        digit.poss_values = [str(x) for x in range(1, 10)]
     else:
         digit.font_colour = LIGHT_RED
     digit.draw()
@@ -190,7 +263,12 @@ while True:
                         print("Solved!", current_solved, total_solved)
                         break
             
-        if event.type == pygame.KEYDOWN: #Testing purposes
-            print(event.key)
+        if event.type == pygame.KEYDOWN:
+
+            if event.key == 114:
+                board_list = reset_board() #Pressing "R" resets the board
+
+            else:
+                print(event.key) #Testing purposes
 
         if event.type == pygame.QUIT: sys.exit() #Exit the programm
