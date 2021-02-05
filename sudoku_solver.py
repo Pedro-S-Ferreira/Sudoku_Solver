@@ -27,7 +27,7 @@ class Digit():
     def __init__(self, value, game_coords, cube_coords, original, solved, font_colour, poss_values):
         self.value = value
         self.game_coords = game_coords # 9x9 coords
-        self.cube_coords = cube_coords # 3x3 coords, which smaller cube they're apart of
+        self.cube_coords = cube_coords # 3x3 coords, which smaller square they're apart of
         self.original = original #If True, it wasn't guessed
         self.solved = solved # 0 if not, 1 if yes
         self.font_colour = font_colour
@@ -39,6 +39,53 @@ class Digit():
         SCREEN.blit(text, game_to_real_coords_number(self.game_coords))
 
 board_list = []
+
+def find_next(board_list):
+    for row in range(9):
+        for col in range(9):
+            if board_list[row][col].value == "0":
+                return row, col
+
+    return None, None
+
+def check_valid(board_list, row, col, test_value):
+    
+    for row_check in range(9): #Check for the same column
+        if board_list[row_check][col].value == test_value:
+            return False
+
+    for col_check in range(9): #Check for the same row
+        if board_list[row][col_check].value == test_value:
+            return False
+
+    for col_check in range(9): #Check for the same square
+        for row_check in range(9):
+            if (int(row_check / 3), int(col_check / 3)) == board_list[row][col].cube_coords:
+                if board_list[row_check][col_check].value == test_value:
+                    return False
+    
+    return True
+
+def solve(board_list):
+    row, col = find_next(board_list) 
+
+    if row == None:
+        return True
+
+    for test_value in range(1, 10):
+        if check_valid(board_list, row, col, str(test_value)):
+            board_list[row][col].value = str(test_value)
+            board_list[row][col].font_colour = LIGHT_GREEN
+            #board_list[row][col].draw()
+            #pygame.display.update()
+            if solve(board_list):
+                return True
+
+        board_list[row][col].value = "0"
+        board_list[row][col].font_colour = BLACK
+        #board_list[row][col].draw()
+        #pygame.display.update()
+    return None
 
 def reset_board():
     temp_list = []
@@ -62,6 +109,11 @@ def board_draw(board_list):
     for row in board_list:
         for digit in row:
             digit.draw()
+    # Draw the dividing lines
+    pygame.draw.rect(SCREEN, BLACK, (190, 0, 4, 576))
+    pygame.draw.rect(SCREEN, BLACK, (382, 0, 4, 576))
+    pygame.draw.rect(SCREEN, BLACK, (0, 190, 576, 4))
+    pygame.draw.rect(SCREEN, BLACK, (0, 382, 576, 4))
 
 def digit_solver(digit):
     position = digit.game_coords
@@ -75,7 +127,7 @@ def digit_solver(digit):
             except:
                 continue
 
-    for x in range(9): #Check numbers in collumns
+    for x in range(9): #Check numbers in columns
         if board_list[x][position[1]].value in digit.poss_values:
             try:
                 digit.poss_values.remove(board_list[x][position[1]].value)
@@ -119,7 +171,7 @@ def digit_solver(digit):
         return digit.poss_values[0]
 
     #If, in any given smaller cube, one possible value is found on ONLY the lists of 3 adjecent digits (vertical or horizontal) we can be certain
-    #that value will be in that collumn/row, meaning we can remove said value from the possible lists of all others digits in the same row/collumn
+    #that value will be in that column/row, meaning we can remove said value from the possible lists of all others digits in the same row/column
     #in the entire board
     for x in range(0, 7, 3): # As mini cubes are in a 3x3 arrangement
         for y in range(0, 7, 3):
@@ -249,6 +301,10 @@ while True:
                             digit.draw()
             
             if event.button == 2: #Attempt to solve the entire board
+                solve(board_list)
+                board_draw(board_list)
+                pygame.display.update()
+                '''
                 total_solved = 0
                 while total_solved != 81:
                     current_solved = total_solved    
@@ -262,7 +318,7 @@ while True:
                     if total_solved == current_solved:
                         print("Solved!", current_solved, total_solved)
                         break
-            
+                '''
         if event.type == pygame.KEYDOWN:
 
             if event.key == 114:
