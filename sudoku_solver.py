@@ -3,13 +3,15 @@ import pygame, sys
 pygame.init()
 pygame.display.set_caption("Sudoku Solver")
 
-SIZE = widht, height = 577, 577
+SIZE = widht, height = 577, 664
 BLACK = 0, 0, 0
 WHITE = 220, 220, 220
 LIGHT_BLUE = 100, 100, 255
 LIGHT_RED = 255, 100, 100
 LIGHT_GREEN = 100, 200, 100
-FONT = pygame.font.SysFont('arial', 50)
+YELLOW = 255, 255, 0
+FONT = pygame.font.SysFont("arial", 50)
+FONT_BUTTON = pygame.font.SysFont("arial", 22)
 
 SCREEN = pygame.display.set_mode(SIZE)
 SCREEN.fill(WHITE)
@@ -24,21 +26,43 @@ def game_to_real_coords_number(game_coords):
     return game_coords[0] * 64 + 20, game_coords[1] * 64 + 4
 
 class Digit():
-    def __init__(self, value, game_coords, cube_coords, original, solved, font_colour, poss_values):
+    def __init__(self, value, game_coords, cube_coords, font_colour):
         self.value = value
         self.game_coords = game_coords # 9x9 coords
         self.cube_coords = cube_coords # 3x3 coords, which smaller square they're apart of
-        self.original = original #If True, it wasn't guessed
-        self.solved = solved # 0 if not, 1 if yes
         self.font_colour = font_colour
-        self.poss_values = poss_values
 
     def draw(self):
         pygame.draw.rect(SCREEN, BLACK, game_to_real_coords_square(self.game_coords), 1)
-        text = FONT.render(self.value, False, self.font_colour, WHITE)
+        text = FONT.render(self.value, True, self.font_colour, WHITE)
         SCREEN.blit(text, game_to_real_coords_number(self.game_coords))
 
+class Button():
+    def __init__ (self, state, words, coords, failed):
+        self.state = state
+        self.words = words
+        self.coords = coords
+        self.failed = failed
+
+    def draw(self):
+        if not self.failed:
+            if self.state == True:
+                pygame.draw.rect(SCREEN, LIGHT_GREEN, self.coords)
+            else:
+                pygame.draw.rect(SCREEN, LIGHT_RED, self.coords)
+
+            text = FONT_BUTTON.render(self.words, True, BLACK, WHITE)
+            SCREEN.blit(text, (self.coords[0] + 40, self.coords[1] + 2))
+        else:
+            pygame.draw.rect(SCREEN, YELLOW, solve_button.coords)
+            text_failed = FONT_BUTTON.render("Unsolvable Sudoku (Press 'R' to restart)", True, BLACK, WHITE)
+            SCREEN.blit(text_failed, (solve_button.coords[0] + 40, solve_button.coords[1] + 2))
+            
+        pygame.draw.rect(SCREEN, BLACK, self.coords, 2)
+
 board_list = []
+show_workings = Button(False, "See algorithm (Slower)", (8, 585, 32, 32), False)
+solve_button = Button(False, "Solve sudoku (Press 'R' to restart)", (8, 624, 32, 32), False)
 
 def find_next(board_list):
     for row in range(9):
@@ -76,16 +100,17 @@ def solve(board_list):
         if check_valid(board_list, row, col, str(test_value)):
             board_list[row][col].value = str(test_value)
             board_list[row][col].font_colour = LIGHT_GREEN
-            #board_list[row][col].draw()
-            #pygame.display.update()
+            if show_workings.state:
+                board_list[row][col].draw()
+                pygame.display.update()
             if solve(board_list):
                 return True
 
         board_list[row][col].value = "0"
         board_list[row][col].font_colour = BLACK
-        #board_list[row][col].draw()
-        #pygame.display.update()
-    return None
+        if show_workings.state:
+            board_list[row][col].draw()
+            pygame.display.update()
 
 def reset_board():
     temp_list = []
@@ -93,7 +118,7 @@ def reset_board():
     for x in range(9):
         temp_list.append([])
         for y in range(9):
-            temp_list[x].append(Digit("0", (x, y), (int(x/3), int(y/3)),False, 0, BLACK, [str(x) for x in range(1, 10)]))
+            temp_list[x].append(Digit("0", (x, y), (int(x/3), int(y/3)), BLACK))
         for item in temp_list[x]: # Draw the board
             item.draw()
     # Draw the dividing lines
@@ -114,137 +139,6 @@ def board_draw(board_list):
     pygame.draw.rect(SCREEN, BLACK, (382, 0, 4, 576))
     pygame.draw.rect(SCREEN, BLACK, (0, 190, 576, 4))
     pygame.draw.rect(SCREEN, BLACK, (0, 382, 576, 4))
-
-def digit_solver(digit):
-    position = digit.game_coords
-    if not board_list[position[0]][position[1]].value == "0": #Check that this square hasn't been solved.
-        return board_list[position[0]][position[1]].value
-
-    for y in range(9): #Check numbers in rows
-        if board_list[position[0]][y].value in digit.poss_values:
-            try:
-                digit.poss_values.remove(board_list[position[0]][y].value)
-            except:
-                continue
-
-    for x in range(9): #Check numbers in columns
-        if board_list[x][position[1]].value in digit.poss_values:
-            try:
-                digit.poss_values.remove(board_list[x][position[1]].value)
-            except:
-                continue
-
-    for x in range(9): #Check numbers in correspondant cube
-        for y in range(9):
-            if (int(board_list[x][y].game_coords[0] / 3), int(board_list[x][y].game_coords[1] / 3)) == (digit.cube_coords[0], digit.cube_coords[1]):
-                if board_list[x][y].value in digit.poss_values:
-                    try:
-                        digit.poss_values.remove(board_list[x][y].value)
-                    except:
-                        continue
- 
-    if len(digit.poss_values) == 1:
-        digit.font_colour = LIGHT_GREEN
-        digit.solved = 1
-        return digit.poss_values[0]
-    
-    
-    test_poss_values = list(digit.poss_values)
-
-    for x in range(9): #Check numbers in correspondant cube
-        for y in range(9):
-            if (int(board_list[x][y].game_coords[0] / 3), int(board_list[x][y].game_coords[1] / 3)) == (digit.cube_coords[0], digit.cube_coords[1]):
-                if (board_list[x][y].game_coords[0], board_list[x][y].game_coords[1]) != (digit.game_coords[0], digit.game_coords[1]):
-                    for value in board_list[x][y].poss_values:
-                        try:
-                            test_poss_values.remove(value)
-                        except:
-                            continue
-
-    
-    if len(test_poss_values) == 1:
-        digit.poss_values = test_poss_values    
-
-    if len(digit.poss_values) == 1:
-        digit.font_colour = LIGHT_GREEN
-        digit.solved = 1
-        return digit.poss_values[0]
-
-    #If, in any given smaller cube, one possible value is found on ONLY the lists of 3 adjecent digits (vertical or horizontal) we can be certain
-    #that value will be in that column/row, meaning we can remove said value from the possible lists of all others digits in the same row/column
-    #in the entire board
-    for x in range(0, 7, 3): # As mini cubes are in a 3x3 arrangement
-        for y in range(0, 7, 3):
-
-            for value in board_list[x][y].poss_values:
-                if value in (board_list[x + 1][y].poss_values + board_list[x + 2][y].poss_values): #Check matching value
-                    if value not in (board_list[x][y + 1].poss_values + board_list[x + 1][y + 1].poss_values + board_list[x + 2][y + 1].poss_values + board_list[x][y + 2].poss_values + board_list[x + 1][y + 2].poss_values + board_list[x + 2][y + 2].poss_values): # Check that it isn't on any other to make this solution true
-                        for z in range(9):
-                            if z not in (x, x+1, x+2): #Doesn't remove the possible value from the place were certain it might be
-                                try:
-                                    board_list[z][y].poss_values.remove(value)
-                                except:
-                                    continue
-
-            for value in board_list[x][y + 1].poss_values:                            
-                if value in (board_list[x + 1][y + 1].poss_values + board_list[x + 2][y + 1].poss_values): #Check matching value
-                    if value not in (board_list[x][y].poss_values + board_list[x + 1][y].poss_values + board_list[x + 2][y].poss_values + board_list[x][y + 2].poss_values + board_list[x + 1][y + 2].poss_values + board_list[x + 2][y + 2].poss_values): # Check that it isn't on any other to make this solution true
-                        for z in range(9):
-                            if z not in (x, x+1, x+2): #Doesn't remove the possible value from the place were certain it might be
-                                try:
-                                    board_list[z][y + 1].poss_values.remove(value)
-                                except:
-                                    continue
-
-            for value in board_list[x][y + 2].poss_values:                        
-                if value in (board_list[x + 1][y + 2].poss_values + board_list[x + 2][y + 2].poss_values): #Check matching value
-                    if value not in (board_list[x][y + 1].poss_values + board_list[x + 1][y + 1].poss_values + board_list[x + 2][y + 1].poss_values + board_list[x][y].poss_values + board_list[x + 1][y].poss_values + board_list[x + 2][y].poss_values): # Check that it isn't on any other to make this solution true
-                        for z in range(9):
-                            if z not in (x, x+1, x+2): #Doesn't remove the possible value from the place were certain it might be
-                                try:
-                                    board_list[z][y + 2].poss_values.remove(value)
-                                except:
-                                    continue
-                
-            for value in board_list[x][y].poss_values: # This one could be mixed with the first square as they both use the same starting point
-                if value in (board_list[x][y + 1].poss_values + board_list[x][y + 2].poss_values): #Check matching value
-                    if value not in (board_list[x + 1][y].poss_values + board_list[x + 1][y + 1].poss_values + board_list[x + 1][y + 2].poss_values + board_list[x + 2][y].poss_values + board_list[x + 2][y + 1].poss_values + board_list[x + 2][y + 2].poss_values): # Check that it isn't on any other to make this solution true
-                        for z in range(9):
-                            if z not in (y, y+1, y+2): #Doesn't remove the possible value from the place were certain it might be
-                                try:
-                                    board_list[x][z].poss_values.remove(value)
-                                except:
-                                    continue
-
-            for value in board_list[x + 1][y].poss_values:
-                if value in (board_list[x + 1][y + 1].poss_values + board_list[x + 1][y + 2].poss_values): #Check matching value
-                    if value not in (board_list[x][y].poss_values + board_list[x][y + 1].poss_values + board_list[x][y + 2].poss_values + board_list[x + 2][y].poss_values + board_list[x + 2][y + 1].poss_values + board_list[x + 2][y + 2].poss_values): # Check that it isn't on any other to make this solution true
-                        for z in range(9):
-                            if z not in (y, y+1, y+2): #Doesn't remove the possible value from the place were certain it might be
-                                try:
-                                    board_list[x + 1][z].poss_values.remove(value)
-                                except:
-                                    continue
-
-            for value in board_list[x + 2][y].poss_values:
-                if value in (board_list[x + 2][y + 1].poss_values + board_list[x + 2][y + 2].poss_values): #Check matching value
-                    if value not in (board_list[x + 1][y].poss_values + board_list[x + 1][y + 1].poss_values + board_list[x + 1][y + 2].poss_values + board_list[x][y].poss_values + board_list[x][y + 1].poss_values + board_list[x][y + 2].poss_values): # Check that it isn't on any other to make this solution true
-                        for z in range(9):
-                            if z not in (y, y+1, y+2): #Doesn't remove the possible value from the place were certain it might be
-                                try:
-                                    board_list[x + 2][z].poss_values.remove(value)
-                                except:
-                                    continue
-
-    if len(digit.poss_values) == 1:
-        digit.font_colour = LIGHT_GREEN
-        digit.solved = 1
-        return digit.poss_values[0]
-    else:
-        print("It appears I can't solve this square yet, or that there are multiple solutions.")
-        print("Here's a list of the possible values:", digit.poss_values)
-        return "0"
-
 
 def edit_digit(digit):
     print("Clicked on: " + str (digit.game_coords) + ". What do you want its new value to be? (Current value is " + str(digit.value) + ") ")
@@ -272,7 +166,6 @@ def edit_digit(digit):
                     print("Invalid input, it must be a number.")
     if digit.value == "0":
         digit.font_colour = BLACK
-        digit.poss_values = [str(x) for x in range(1, 10)]
     else:
         digit.font_colour = LIGHT_RED
     digit.draw()
@@ -280,49 +173,45 @@ def edit_digit(digit):
 board_list = reset_board()
 
 while True:
+    show_workings.draw()
+    solve_button.draw()
     pygame.display.update()
     events = pygame.event.get()
     for event in events:
         if event.type == pygame.MOUSEBUTTONDOWN:
             if event.button == 1: #Assign a value
-                for row in board_list:
+                for row in board_list: #Check if its pressing a digit
                     for digit in row:
                         if pygame.Rect(game_to_pygame_Rect_coords(digit.game_coords)).collidepoint(event.pos):
                             digit.font_colour = LIGHT_BLUE
                             digit.draw()
                             pygame.display.update()
                             edit_digit(digit)
+                
+                if pygame.Rect(show_workings.coords).collidepoint(event.pos): #Interacting with see algorithm button
+                    if show_workings.state:
+                        show_workings.state = False
+                    else:
+                        show_workings.state = True
+                
+                if pygame.Rect(solve_button.coords).collidepoint(event.pos): #Interacting with solve sudoku button
+                    solve_button.state = True
+                    solve(board_list)
 
-            if event.button == 3: #Attempt to solve the clicked square
-                for row in board_list:
-                    for digit in row:
-                        if pygame.Rect(game_to_pygame_Rect_coords(digit.game_coords)).collidepoint(event.pos):
-                            digit.value = digit_solver(digit)
-                            digit.draw()
-            
-            if event.button == 2: #Attempt to solve the entire board
-                solve(board_list)
-                board_draw(board_list)
-                pygame.display.update()
-                '''
-                total_solved = 0
-                while total_solved != 81:
-                    current_solved = total_solved    
-                    for row in board_list:
-                        for digit in row:
-                            digit.value = digit_solver(digit)
-                            digit.draw()
-                            if digit.solved:
-                                total_solved += 1
-                                digit.solved = 0
-                    if total_solved == current_solved:
-                        print("Solved!", current_solved, total_solved)
-                        break
-                '''
+                    for row in range(9):#Check that if it failed
+                        for col in range(9):
+                            if board_list[row][col].value == "0":
+                                solve_button.failed = True
+                                break
+                    board_draw(board_list)
+                    pygame.display.update()
+
         if event.type == pygame.KEYDOWN:
 
             if event.key == 114:
                 board_list = reset_board() #Pressing "R" resets the board
+                solve_button.state = False
+                solve_button.failed = False
 
             else:
                 print(event.key) #Testing purposes
