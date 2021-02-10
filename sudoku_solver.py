@@ -1,41 +1,129 @@
 import pygame, sys
 
 pygame.init()
-pygame.display.set_caption("Sudoku Solver")
+pygame.display.set_caption("Checkers")
 
-SIZE = widht, height = 577, 664
+SIZE = width, height = 512, 600
 BLACK = 0, 0, 0
-WHITE = 220, 220, 220
-LIGHT_BLUE = 100, 100, 255
-LIGHT_RED = 255, 100, 100
-LIGHT_GREEN = 100, 200, 100
-YELLOW = 255, 255, 0
-FONT = pygame.font.SysFont("arial", 50)
+LIGHT_GREEN = 128, 200, 128
+GREEN = 0, 255, 0
+RED = 255, 0, 0
+DARK_RED = 150, 0, 0
+WHITE = 255, 255, 255
+DARK_WHITE = 150, 150, 150
+BROWN = 255, 255, 100
 FONT_BUTTON = pygame.font.SysFont("arial", 22)
 
 SCREEN = pygame.display.set_mode(SIZE)
-SCREEN.fill(WHITE)
 
-def game_to_real_coords_square(game_coords):
-    return game_coords[0] * 64, game_coords[1] * 64, 64, 64
+def coords_to_circle(x, y):
+    return [x * 64 + 32, y * 64 + 32]
 
-def game_to_pygame_Rect_coords(game_coords):
-    return (game_coords[0] * 64, game_coords[1] * 64, 64, 64)
+def coords_to_square(x, y):
+    return [x * 64, y * 64]
 
-def game_to_real_coords_number(game_coords):
-    return game_coords[0] * 64 + 20, game_coords[1] * 64 + 4
-
-class Digit():
-    def __init__(self, value, game_coords, cube_coords, font_colour):
-        self.value = value
-        self.game_coords = game_coords # 9x9 coords
-        self.cube_coords = cube_coords # 3x3 coords, which smaller square they're apart of
-        self.font_colour = font_colour
-
+class Square:
+    def __init__(self, colour, draw_coords, real_coords, piece):
+        self.colour = colour
+        self.draw_coords = draw_coords
+        self.real_coords = real_coords
+        self.piece = piece #0 means no piece, #WHITE means a white piece is there, #RED means a red piece is there      
+    
     def draw(self):
-        pygame.draw.rect(SCREEN, BLACK, game_to_real_coords_square(self.game_coords), 1)
-        text = FONT.render(self.value, True, self.font_colour, WHITE)
-        SCREEN.blit(text, game_to_real_coords_number(self.game_coords))
+        pygame.draw.rect(SCREEN, self.colour, self.draw_coords)
+
+class Piece:
+    def __init__(self, colour, draw_centre, coords, king):
+        self.colour = colour
+        self.draw_centre = draw_centre
+        self.coords = coords
+        self.king = king
+    
+    def update_draw_centre(self):
+        self.draw_centre = coords_to_circle(self.coords)
+    
+    def draw(self):
+            pygame.draw.circle(SCREEN, self.colour, self.draw_centre, 24)
+
+    def available_moves(self):
+        moves = []
+        remove = []
+
+        if self.colour in (RED, DARK_RED, DARK_WHITE):
+            if self.coords[0] > 0:
+                moves.append([self, self.coords[0] - 1, self.coords[1] + 1])
+            if self.coords[0] < 7:
+                moves.append([self, self.coords[0] + 1, self.coords[1] + 1])
+        
+        if self.colour in (WHITE, DARK_RED, DARK_WHITE):
+            if self.coords[0] > 0:
+                moves.append([self, self.coords[0] - 1, self.coords[1] - 1])
+            if self.coords[0] < 7:
+                moves.append([self, self.coords[0] + 1, self.coords[1] - 1])
+
+        for move in moves: #To verify all moves are valid
+            for square in dark_squares:
+                if [move[1], move[2]] == square.real_coords and square.piece in (RED, WHITE): #Piece being moved is white
+                    remove.append(move)
+        for move in remove: #The remove list is needed as we can't remove items from a list as we're iterating it.
+            moves.remove(move)
+        for move in moves:
+            pygame.draw.circle(SCREEN, BROWN, (move[1] * 64 + 32, move[2] * 64 + 32), 12)
+        return moves
+
+    def available_captures(self):
+        moves = []
+        remove = []
+
+        if self.colour in (RED, DARK_RED):
+            if self.coords[0] > 0:
+                for square in dark_squares:
+                    if square.real_coords == [self.coords[0] - 1, self.coords[1] + 1] and square.piece == WHITE:
+                        moves.append([self, self.coords[0] - 2, self.coords[1] + 2, square])
+            if self.coords[0] < 7:
+                for square in dark_squares:
+                    if square.real_coords == [self.coords[0] + 1, self.coords[1] + 1] and square.piece == WHITE:
+                        moves.append([self, self.coords[0] + 2, self.coords[1] + 2, square])
+
+        if self.colour == DARK_WHITE:
+            if self.coords[0] > 0:
+                for square in dark_squares:
+                    if square.real_coords == [self.coords[0] - 1, self.coords[1] + 1] and square.piece == RED:
+                        moves.append([self, self.coords[0] - 2, self.coords[1] + 2, square])
+            if self.coords[0] < 7:
+                for square in dark_squares:
+                    if square.real_coords == [self.coords[0] + 1, self.coords[1] + 1] and square.piece == RED:
+                        moves.append([self, self.coords[0] + 2, self.coords[1] + 2, square])
+
+        if self.colour in (WHITE, DARK_WHITE):
+            if self.coords[0] > 0:
+                for square in dark_squares:
+                    if square.real_coords == [self.coords[0] - 1, self.coords[1] - 1] and square.piece == RED:
+                        moves.append([self, self.coords[0] - 2, self.coords[1] - 2, square])
+            if self.coords[0] < 7:
+                for square in dark_squares:
+                    if square.real_coords == [self.coords[0] + 1, self.coords[1] - 1] and square.piece == RED:
+                        moves.append([self, self.coords[0] + 2, self.coords[1] - 2, square])
+
+        if self.colour == DARK_RED:
+            if self.coords[0] > 0:
+                for square in dark_squares:
+                    if square.real_coords == [self.coords[0] - 1, self.coords[1] - 1] and square.piece == WHITE:
+                        moves.append([self, self.coords[0] - 2, self.coords[1] - 2, square])
+            if self.coords[0] < 7:
+                for square in dark_squares:
+                    if square.real_coords == [self.coords[0] + 1, self.coords[1] - 1] and square.piece == WHITE:
+                        moves.append([self, self.coords[0] + 2, self.coords[1] - 2, square])
+
+        for move in moves: #To verify all moves are valid
+            for square in dark_squares:
+                if [move[1], move[2]] == square.real_coords and square.piece in (RED, WHITE): #Piece being moved is white
+                    remove.append(move)
+        for move in remove: #The remove list is needed as we can't remove items from a list as we're iterating it.
+            moves.remove(move)
+        for move in moves:
+            pygame.draw.circle(SCREEN, BROWN, (move[1] * 64 + 32, move[2] * 64 + 32), 16)
+        return moves
 
 class Button():
     def __init__ (self, state, words, coords, failed):
@@ -43,177 +131,163 @@ class Button():
         self.words = words
         self.coords = coords
         self.failed = failed
-
+    
     def draw(self):
+        pygame.draw.rect(SCREEN, LIGHT_GREEN, (self.coords[0], self.coords[1], 250, 36))# Since the text is AA, pressing the button multiple times would have a strange effect, hence the need to erase it before drawing it again.
         if not self.failed:
-            if self.state == True:
-                pygame.draw.rect(SCREEN, LIGHT_GREEN, self.coords)
+            if self.state:
+                pygame.draw.rect(SCREEN, GREEN, self.coords)
             else:
-                pygame.draw.rect(SCREEN, LIGHT_RED, self.coords)
+                pygame.draw.rect(SCREEN, RED, self.coords)
 
-            text = FONT_BUTTON.render(self.words, True, BLACK, WHITE)
-            SCREEN.blit(text, (self.coords[0] + 40, self.coords[1] + 2))
+            text = FONT_BUTTON.render(self.words, True, BLACK)
+            SCREEN.blit(text, (self.coords[0] + 40, self.coords[1] + 6))
         else:
             pygame.draw.rect(SCREEN, YELLOW, solve_button.coords)
-            text_failed = FONT_BUTTON.render("Unsolvable Sudoku (Press 'R' to restart)", True, BLACK, WHITE)
-            SCREEN.blit(text_failed, (solve_button.coords[0] + 40, solve_button.coords[1] + 2))
             
         pygame.draw.rect(SCREEN, BLACK, self.coords, 2)
 
-board_list = []
-show_workings = Button(False, "See algorithm (Slower)", (8, 585, 32, 32), False)
-solve_button = Button(False, "Solve sudoku (Press 'R' to restart)", (8, 624, 32, 32), False)
-
-def find_next(board_list):
-    for row in range(9):
-        for col in range(9):
-            if board_list[row][col].value == "0":
-                return row, col
-
-    return None, None
-
-def check_valid(board_list, row, col, test_value):
+class Indicator():
+    def __init__(self, piece_colour, centre_coords, remaining):
+        self.piece_colour = piece_colour
+        self.centre_coords = centre_coords
+        self.remaining = remaining
     
-    for row_check in range(9): #Check for the same column
-        if board_list[row_check][col].value == test_value:
-            return False
+    def draw(self):
+        remaining = "x" + str(self.remaining)
+        pygame.draw.circle(SCREEN, self.piece_colour, self.centre_coords)
 
-    for col_check in range(9): #Check for the same row
-        if board_list[row][col_check].value == test_value:
-            return False
+dark_squares = []# The only squares drawn were black ones as they're the only playable ones anyway. 
+                #The background is white. The squares are found in a list, in order, from top to bottom, left to right
 
-    for col_check in range(9): #Check for the same square
-        for row_check in range(9):
-            if (int(row_check / 3), int(col_check / 3)) == board_list[row][col].cube_coords:
-                if board_list[row_check][col_check].value == test_value:
-                    return False
+restart_button = Button(True, "Press to restart.", (10, 522, 32, 32), False)
+
+for collumn in range(0, 4):
+    for row in range(1, 9, 2):
+        dark_squares.append(Square(BLACK, (collumn * 128, row * 64, 64, 64), [2 * collumn, row], False))
+    for row in range(0, 8, 2):
+        dark_squares.append(Square(BLACK, (collumn * 128 + 64, row * 64, 64, 64), [2 * collumn + 1, row], False))
+
+def board_draw():
+    for item in dark_squares:
+        item.draw()
+    #Draw borders
+    pygame.draw.rect(SCREEN, BLACK, (0, 0, 512, 1))
+    pygame.draw.rect(SCREEN, BLACK, (0, 512, 512, 1))
+    pygame.draw.rect(SCREEN, BLACK, (0, 0, 1, 512))
+    pygame.draw.rect(SCREEN, BLACK, (511, 0, 1, 512))
+    #Draw bits below
+    restart_button.draw()
+
+def board_reset():
+    pieces = []
+
+    for square in dark_squares:
+        if square.real_coords[1] <= 2:
+            pieces.append(Piece(RED, [square.real_coords[0] * 64 + 32, square.real_coords[1] * 64 + 32], square.real_coords, 0))
+            square.piece = RED
+        elif square.real_coords[1] >= 5:
+            pieces.append(Piece(WHITE, [square.real_coords[0] * 64 + 32, square.real_coords[1] * 64 + 32], square.real_coords, 0))
+            square.piece = WHITE
+        else:
+            square.piece = 0
     
-    return True
+    for piece in pieces:
+        piece.draw()
 
-def solve(board_list):
-    row, col = find_next(board_list) 
+    return pieces, (WHITE, DARK_WHITE)
 
-    if row == None:
-        return True
+def pieces_draw(pieces):#This function draws the pieces, checks and makes them kings and checks to see if the game is over yet
+    red = []
+    white = []
+    for piece in pieces:
+        if piece.coords[1] == 7 and piece.colour == RED:
+            piece.king = True
+            piece.colour = DARK_RED
+        elif piece.coords[1] == 0 and piece.colour == WHITE:
+            piece.king = True
+            piece.colour = DARK_WHITE
+        if piece.colour in (RED, DARK_RED):
+            red.append(piece)
+        if piece.colour in (WHITE, DARK_WHITE):
+            white.append(piece)
+        piece.draw()
+    if len(red) == 0:
+        print("Game Over. White wins! Press \"R\" to play again.")
+        return 1
+    elif len(white) == 0:
+        print("Game Over. Red wins! Press \"R\" to play again.")
+        return 2
 
-    for test_value in range(1, 10):
-        if check_valid(board_list, row, col, str(test_value)):
-            board_list[row][col].value = str(test_value)
-            board_list[row][col].font_colour = LIGHT_GREEN
-            if show_workings.state:
-                board_list[row][col].draw()
-                pygame.display.update()
-            if solve(board_list):
-                return True
-
-        board_list[row][col].value = "0"
-        board_list[row][col].font_colour = BLACK
-        if show_workings.state:
-            board_list[row][col].draw()
-            pygame.display.update()
-
-def reset_board():
-    temp_list = []
-    SCREEN.fill(WHITE) # Erase the board
-    for x in range(9):
-        temp_list.append([])
-        for y in range(9):
-            temp_list[x].append(Digit("0", (x, y), (int(x/3), int(y/3)), BLACK))
-        for item in temp_list[x]: # Draw the board
-            item.draw()
-    # Draw the dividing lines
-    pygame.draw.rect(SCREEN, BLACK, (190, 0, 4, 576))
-    pygame.draw.rect(SCREEN, BLACK, (382, 0, 4, 576))
-    pygame.draw.rect(SCREEN, BLACK, (0, 190, 576, 4))
-    pygame.draw.rect(SCREEN, BLACK, (0, 382, 576, 4))
-
-    return temp_list
-
-def board_draw(board_list):
-    SCREEN.fill(WHITE) # Erase the board
-    for row in board_list:
-        for digit in row:
-            digit.draw()
-    # Draw the dividing lines
-    pygame.draw.rect(SCREEN, BLACK, (190, 0, 4, 576))
-    pygame.draw.rect(SCREEN, BLACK, (382, 0, 4, 576))
-    pygame.draw.rect(SCREEN, BLACK, (0, 190, 576, 4))
-    pygame.draw.rect(SCREEN, BLACK, (0, 382, 576, 4))
-
-def edit_digit(digit):
-    print("Clicked on: " + str (digit.game_coords) + ". What do you want its new value to be? (Current value is " + str(digit.value) + ") ")
-    gathering = True
-    while gathering:
-        for event in pygame.event.get():
-            if event.type == pygame.KEYDOWN:
-
-                if event.key in range(48, 58): #Check for numbers near F1 - F12 keys
-                    digit.value = str(event.key - 48)
-                    if str(event.key - 48) != 0:
-                        digit.poss_values = list(str(event.key - 48)) #Make it so the list of possible values is the input itself
-                    gathering = False #Stop the while loop
-
-                elif event.key in range(1073741913, 1073741923): #Check for numbers in numbpad
-                    if event.key in range(1073741913, 1073741922):
-                        digit.value = str(event.key - 1073741912)
-                        digit.poss_values = list(str(event.key - 1073741912)) #Make it so the list of possible values is the input itself
-                        gathering = False #Stop the while loop
-                    else:
-                        digit.value = "0"
-                        gathering = False #Stop the while loop
-
-                else:
-                    print("Invalid input, it must be a number.")
-    if digit.value == "0":
-        digit.font_colour = BLACK
-    else:
-        digit.font_colour = LIGHT_RED
-    digit.draw()
-
-board_list = reset_board()
+SCREEN.fill(LIGHT_GREEN)
+board_draw()
+pieces, play = board_reset()
+print("White to play.")
 
 while True:
-    show_workings.draw()
-    solve_button.draw()
     pygame.display.update()
-    events = pygame.event.get()
-    for event in events:
+
+    cursor_coords = (pygame.mouse.get_pos()[0], pygame.mouse.get_pos()[1])
+
+    for event in pygame.event.get():                
         if event.type == pygame.MOUSEBUTTONDOWN:
-            if event.button == 1: #Assign a value
-                for row in board_list: #Check if its pressing a digit
-                    for digit in row:
-                        if pygame.Rect(game_to_pygame_Rect_coords(digit.game_coords)).collidepoint(event.pos):
-                            digit.font_colour = LIGHT_BLUE
-                            digit.draw()
-                            pygame.display.update()
-                            edit_digit(digit)
-                
-                if pygame.Rect(show_workings.coords).collidepoint(event.pos): #Interacting with see algorithm button
-                    if show_workings.state:
-                        show_workings.state = False
-                    else:
-                        show_workings.state = True
-                
-                if pygame.Rect(solve_button.coords).collidepoint(event.pos): #Interacting with solve sudoku button
-                    solve_button.state = True
-                    solve(board_list)
+            for piece in pieces: #Check if the cursor is hovering over a piece
+                if cursor_coords[0] >= piece.draw_centre[0] - 32 and cursor_coords[0] <= piece.draw_centre[0] + 32 and cursor_coords[1] >= piece.draw_centre[1] - 32 and cursor_coords[1] <= piece.draw_centre[1] + 32 and piece.colour in play:
+                    board_draw()
+                    pieces_draw(pieces)
+                    moves = piece.available_moves() + piece.available_captures()
+                    #restart_button.state = False
+                    #restart_button.draw()
+            try:
+                for move in moves:
+                    if cursor_coords[0] > coords_to_square(move[1], move[2])[0] and cursor_coords[1] > coords_to_square(move[1], move[2])[1] and cursor_coords[0] < coords_to_square(move[1], move[2])[0] + 64 and cursor_coords[1] < coords_to_square(move[1], move[2])[1] + 64:
+                        for square in dark_squares: #Make it so the square the piece is about to leave knows it no longuer has a piece
+                            if square.real_coords == move[0].coords:
+                                square.piece = 0
+                                board_draw()#board_draw() is needed instead of simply square_draw() as the other indication of possible movement (small purple circle), if present, also needs to be erased
+                                restart_button.state = False
+                                restart_button.draw()
+                        
+                        move[0].coords = [move[1], move[2]] #Give the piece new coordinates and draw it in its new place
+                        move[0].draw_centre = coords_to_circle(move[1], move[2])
+                        try:
+                            for piece in pieces:
+                                if piece.coords == move[3].real_coords:
+                                    pieces.remove(piece)
+                                    move[3].piece = 0
+                        except:
+                            pass
+                        pieces_draw(pieces)
+                        moves = []
+                        if not pieces_draw(pieces):
+                            if play == (WHITE, DARK_WHITE):
+                                play = (RED, DARK_RED)
+                                print("Red to play.")
+                            elif play == (RED, DARK_RED):
+                                play = (WHITE, DARK_WHITE)
+                                print("White to play.")
+                        else:
+                            play = (0, 0)# It has to be a list and not just False so line 198 doesn't return an error.
 
-                    for row in range(9):#Check that if it failed
-                        for col in range(9):
-                            if board_list[row][col].value == "0":
-                                solve_button.failed = True
-                                break
-                    board_draw(board_list)
-                    pygame.display.update()
+                        for square in dark_squares: #Make it so the square the piece is now on knows it has a piece
+                            if square.real_coords == move[0].coords:
+                                if move[0].colour in (RED, DARK_RED):
+                                    square.piece = RED
+                                elif move[0].colour in (WHITE, DARK_WHITE):
+                                    square.piece = WHITE
 
-        if event.type == pygame.KEYDOWN:
+            except:
+                pass
 
-            if event.key == 114:
-                board_list = reset_board() #Pressing "R" resets the board
-                solve_button.state = False
-                solve_button.failed = False
+            if pygame.Rect(restart_button.coords).collidepoint(event.pos):
+                board_draw()
+                pieces, play = board_reset()
+                restart_button.state = True
+                restart_button.draw()
+        
+        if event.type == pygame.KEYDOWN: #By pressing R, we can restart the game
+            if event.key == pygame.K_r:
+                board_draw()
+                pieces = board_reset()
 
-            else:
-                print(event.key) #Testing purposes
-
-        if event.type == pygame.QUIT: sys.exit() #Exit the programm
+        if event.type == pygame.QUIT: sys.exit()
